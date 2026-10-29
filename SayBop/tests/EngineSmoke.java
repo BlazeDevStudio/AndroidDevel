@@ -24,6 +24,18 @@ public final class EngineSmoke {
     try{AudioVisuals.analyze(new float[]{1},rate);throw new AssertionError("Odd PCM accepted");}
     catch(IllegalArgumentException expected){}
     BeatAnalyzer.Grid g=BeatAnalyzer.detect(background,rate);
+    BeatAnalyzer.Grid sectionGrid=new BeatAnalyzer.Grid(120,.10);
+    if(SceneDirector.scene(sectionGrid,.4)!=0 || SceneDirector.scene(sectionGrid,2.11)!=1)
+      throw new AssertionError("Section scene boundary");
+    if(SceneDirector.scene(sectionGrid,2.11)!=SceneDirector.scene(sectionGrid,2.11))
+      throw new AssertionError("Nondeterministic scene seek");
+    if(SceneDirector.scene(sectionGrid,12.11)!=0)
+      throw new AssertionError("Six-scene cyclic sequence");
+    if(SceneDirector.typographyMotion(5,4)!=1||SceneDirector.typographyMotion(2,4)!=2)
+      throw new AssertionError("Motion mode mismatch");
+    float flash=SceneDirector.downbeatFlash(sectionGrid,.10);
+    if(flash<.99 || SceneDirector.downbeatFlash(sectionGrid,1.10)>.001)
+      throw new AssertionError("Flash not beat aligned");
     if (Math.abs(g.bpm-120)>8 && Math.abs(g.bpm-60)>8)throw new AssertionError("BPM "+g.bpm);
     BeatAnalyzer.Grid corrected=BeatAnalyzer.correct(g,100,-125);
     if(Math.abs(corrected.bpm-100)>1e-8 || corrected.phaseSeconds<0

@@ -25,3 +25,18 @@ Choose a local audio file, installed offline TTS voice, enter a phrase, generate
 A workflow passing `assembleDebug` proves an APK was compiled, **not** that it installed, generated TTS on a physical phone, or exported a playable MP4. Emulator/instrumentation and device tests must be reported separately. Codec availability depends on the Android device.
 
 Only use music you have rights to redistribute. No proprietary Ditty code, sounds or assets are bundled.
+
+## Auto Director scenes (this preview)
+
+The sixth animation choice, **Auto Director**, cycles six procedural native scenes
+(on each four-beat section): oscillating wave ribbons, light trails, radial fan,
+sliding panel composition, prism diamonds and beat rings. It deliberately removes
+the repeated software slogan from video frames. The original music track's RMS,
+bass envelope and attacks modulate colors, geometry, movement and beat flashes;
+the typed words remain timed to the same musical grid used by the vocal mix.
+
+The Android preview and H.264/AAC export use one deterministic SceneDirector,
+one immutable music envelope and the same renderer. At 120 BPM scenes switch
+every two seconds. No Ditty artwork or proprietary audio assets are copied.
+Real on-device offline voice availability and singing naturalness remain separate
+validation gates.

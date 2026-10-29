@@ -42,10 +42,22 @@ public final class ExportSmokeTest {
         Bitmap artwork=still.frame(.62);
         assertEquals(VideoRenderer.WIDTH,artwork.getWidth());
         assertEquals(VideoRenderer.HEIGHT,artwork.getHeight());
+        // One reusable Bitmap must be stable at a given timestamp but differ across song sections.
+        VideoRenderer director=new VideoRenderer(cues,grid,5,reactive);
+        Bitmap first=director.frame(.75);
+        int[] firstPixels=new int[64];
+        for(int i=0;i<64;i++)firstPixels[i]=first.getPixel(20+(i%8)*94,140+(i/8)*130);
+        Bitmap second=director.frame(2.75);
+        int changed=0;
+        for(int i=0;i<64;i++)if(firstPixels[i]!=second.getPixel(20+(i%8)*94,140+(i/8)*130))changed++;
+        assertTrue("Auto scene did not visibly change",changed>14);
+        assertEquals(0,SceneDirector.scene(grid,.75));
+        assertEquals(1,SceneDirector.scene(grid,2.75));
+        assertEquals("Preview/export scene must be seek-deterministic",1,SceneDirector.scene(grid,2.75));
         float[] mixed=PcmMix.compose(backing,cues,Arrays.asList(a,b));
         Uri exported=null;
         try {
-            exported=Mp4Exporter.export(ctx,mixed,cues,grid,"SayBop-QA-Codec-Test.mp4",3,reactive);
+            exported=Mp4Exporter.export(ctx,mixed,cues,grid,"SayBop-QA-Codec-Test.mp4",5,reactive);
             assertNotNull("MediaStore returned no URI",exported);
             MediaMetadataRetriever meta=new MediaMetadataRetriever();
             try {

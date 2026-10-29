@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         layout.addView(label("ANIMATION",13,Color.WHITE));
         animationModes=new Spinner(this);
         animationModes.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Beat Pop","Slide + Fade","Pulse + Bounce","Spectrum Orbit","Waveform Drift"}));
+            new String[]{"Beat Pop","Slide + Fade","Pulse + Bounce","Spectrum Orbit","Waveform Drift","Auto Director"}));
         layout.addView(animationModes);space(layout,8);
         layout.addView(label("BPM  (blank = auto)",13,Color.WHITE));
         bpmInput=new EditText(this);bpmInput.setSingleLine(true);
