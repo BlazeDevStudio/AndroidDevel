@@ -17,9 +17,11 @@ public final class WordTimeline {
         String[] words=Arrays.stream(text.trim().split("\\s+"))
                 .filter(w->!w.isEmpty()).toArray(String[]::new);
         if(words.length==0)return Collections.emptyList();
-        if(words.length>120)throw new IllegalArgumentException("Prototype supports at most 120 words");
+        if(words.length>120)throw new IllegalArgumentException("Use at most 120 words");
         double beat=grid.beatSeconds();
-        double step=Math.max(beat*.5, Math.min(beat*2, (clipSeconds-1.5)/(words.length+1.0)));
+        // Quantized subdivisions: half beat, one beat or two beats. Never free-run off the grid.
+        double desired=(clipSeconds-1.5)/(words.length+1.0);
+        double step=desired < beat*.75 ? beat*.5 : desired < beat*1.5 ? beat : beat*2;
         double start=grid.phaseSeconds+beat;
         while(start<0.4)start+=beat;
         List<Cue> cues=new ArrayList<>();

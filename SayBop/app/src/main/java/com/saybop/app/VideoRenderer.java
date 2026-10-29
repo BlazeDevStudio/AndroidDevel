@@ -10,7 +10,11 @@ public final class VideoRenderer {
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final List<WordTimeline.Cue> cues;
     private final BeatAnalyzer.Grid grid;
-    public VideoRenderer(List<WordTimeline.Cue> cues,BeatAnalyzer.Grid grid) {this.cues=cues;this.grid=grid;}
+    private final int mode;
+    public VideoRenderer(List<WordTimeline.Cue> cues,BeatAnalyzer.Grid grid) {this(cues,grid,0);}
+    public VideoRenderer(List<WordTimeline.Cue> cues,BeatAnalyzer.Grid grid,int mode) {
+        this.cues=cues;this.grid=grid;this.mode=Math.max(0,Math.min(mode,2));
+    }
     public Bitmap frame(double seconds){
         canvas.drawColor(Color.rgb(6,10,20));
         double beat=grid.beatSeconds();
@@ -43,7 +47,8 @@ public final class VideoRenderer {
             double d=seconds-cue.startSeconds;
             double fadeIn=Math.min(1,d/.07);
             double fadeOut=Math.min(1,(cue.endSeconds-seconds)/.11);
-            double pop=1+.23*Math.exp(-d*12)*Math.cos(d*24);
+            double pop=mode==1 ? 1.0 : 1+.23*Math.exp(-d*12)*Math.cos(d*24);
+            if(mode==2)pop+=.1*Math.sin(2*Math.PI*(seconds-grid.phaseSeconds)/beat)*Math.exp(-d*3);
             String word=cue.text;
             p.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
             float font=84;
@@ -51,7 +56,9 @@ public final class VideoRenderer {
             while(font>26 && p.measureText(word)>WIDTH-54){font-=2;p.setTextSize(font);}
             p.setColor(Color.argb((int)(255*Math.max(0,Math.min(fadeIn,fadeOut))),247,251,255));
             p.setShadowLayer(23,0,0,Color.rgb(18,143,255));
-            canvas.save();canvas.translate(WIDTH*.5f,HEIGHT*.48f);
+            canvas.save();canvas.translate(WIDTH*.5f+
+                (mode==1 ? (float)(1-fadeIn)*WIDTH*.5f : 0),HEIGHT*.48f+
+                (mode==2 ? (float)(Math.sin(d*18)*32*Math.exp(-d*6)) : 0));
             canvas.scale((float)pop,(float)pop);
             canvas.drawText(word,0,0,p);canvas.restore();p.clearShadowLayer();
             p.setColor(Color.rgb(33,151,255));

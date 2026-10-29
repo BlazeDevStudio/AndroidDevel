@@ -25,7 +25,9 @@ public class MainActivity extends Activity {
     private EditText typed;
     private TextView statusLabel,songLabel;
     private Button create,export,play;
-    private Spinner voices;
+    private Spinner voices, animationModes;
+    private EditText bpmInput, beatShiftInput;
+    private int currentAnimationMode=0;
     private KineticPreview preview;
     private MediaPlayer player;
     private float[] mixed;
@@ -67,6 +69,23 @@ public class MainActivity extends Activity {
         ArrayAdapter<String> initial=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
                 new String[]{"Checking installed voices…"});
         voices.setAdapter(initial);layout.addView(voices);space(layout,14);
+        layout.addView(label("ANIMATION",13,Color.WHITE));
+        animationModes=new Spinner(this);
+        animationModes.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
+            new String[]{"Beat Pop","Slide + Fade","Pulse + Bounce"}));
+        layout.addView(animationModes);space(layout,8);
+        layout.addView(label("BPM  (blank = auto)",13,Color.WHITE));
+        bpmInput=new EditText(this);bpmInput.setSingleLine(true);
+        bpmInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|
+            android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        bpmInput.setHint("Auto");bpmInput.setTextColor(Color.WHITE);
+        layout.addView(bpmInput);
+        layout.addView(label("BEAT OFFSET  (milliseconds)",13,Color.WHITE));
+        beatShiftInput=new EditText(this);beatShiftInput.setSingleLine(true);
+        beatShiftInput.setInputType(android.text.InputType.TYPE_CLASS_NUMBER|
+            android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+        beatShiftInput.setText("0");beatShiftInput.setTextColor(Color.WHITE);
+        layout.addView(beatShiftInput);space(layout,14);
         create=button("GENERATE SAYBOP",layout);
         create.setOnClickListener(v->generate());
         statusLabel=label("Ready once an offline voice is available.",13,Color.rgb(163,189,217));
@@ -142,13 +161,19 @@ public class MainActivity extends Activity {
         if(selectedMusic==null){notifyStatus("Choose local music first.");return;}
         String phrase=typed.getText().toString().trim();
         if(phrase.isEmpty()){notifyStatus("Type something to sing.");return;}
-        Voice selected=voiceOptions.get(Math.min(voices.getSelectedItemPosition(),voiceOptions.size()-1));
+        Voice selected=voiceOptions.get(Math.max(0,Math.min(voices.getSelectedItemPosition(),voiceOptions.size()-1)));
+        final int chosenAnimation=Math.max(0,animationModes.getSelectedItemPosition());
+        final String bpmOverride=bpmInput.getText().toString().trim();
+        final String offsetOverride=beatShiftInput.getText().toString().trim();
         setBusy(true);mixed=null;play.setEnabled(false);export.setEnabled(false);
         new Thread(()->{
             try {
                 notifyStatus("Decoding selected music locally…");
                 AudioIO.Track music=AudioIO.decode(this,selectedMusic,18);
-                BeatAnalyzer.Grid detected=BeatAnalyzer.detect(music.stereo,PcmMix.RATE);
+                BeatAnalyzer.Grid auto=BeatAnalyzer.detect(music.stereo,PcmMix.RATE);
+                double correctedBpm=bpmOverride.isEmpty()?0:Double.parseDouble(bpmOverride);
+                double offsetMs=offsetOverride.isEmpty()?0:Double.parseDouble(offsetOverride);
+                BeatAnalyzer.Grid detected=BeatAnalyzer.correct(auto,correctedBpm,offsetMs);
                 List<WordTimeline.Cue> timeline=WordTimeline.build(phrase,detected,music.duration());
                 if(timeline.isEmpty())throw new IOException("The track is too short for a word animation");
                 String[] words=Arrays.stream(phrase.split("\\s+"))
@@ -176,7 +201,8 @@ public class MainActivity extends Activity {
                 File playable=AudioIO.writePreviewWav(this,output);
                 runOnUiThread(()->{
                     stopPreview();mixed=output;cues=timeline;grid=detected;previewFile=playable;
-                    preview.setTimeline(cues,grid);play.setEnabled(true);export.setEnabled(true);
+                    currentAnimationMode=chosenAnimation;
+                    preview.setTimeline(cues,grid,currentAnimationMode);play.setEnabled(true);export.setEnabled(true);
                     notifyStatus(String.format(Locale.US,"Ready: %.1f seconds | %.0f BPM | %d word cues",
                         output.length/(2.0*PcmMix.RATE),detected.bpm,timeline.size()));
                 });
@@ -201,11 +227,12 @@ public class MainActivity extends Activity {
         setBusy(true);
         final float[] audio=mixed;final List<WordTimeline.Cue> words=cues;
         final BeatAnalyzer.Grid beats=grid;
+        final int mode=currentAnimationMode;
         new Thread(()->{
             try{
                 notifyStatus("Encoding offline H.264 video and AAC audio…");
                 String name="SayBop_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".mp4";
-                Uri out=Mp4Exporter.export(this,audio,words,beats,name);
+                Uri out=Mp4Exporter.export(this,audio,words,beats,name,mode);
                 notifyStatus("Saved MP4 to Movies/SayBop: "+name+"\n"+out);
             }catch(Exception e){notifyStatus("Export failed: "+e.getMessage());}
             finally{runOnUiThread(()->{setBusy(false);play.setEnabled(mixed!=null);export.setEnabled(mixed!=null);});}
@@ -216,8 +243,8 @@ public class MainActivity extends Activity {
     }
     private final class KineticPreview extends View {
         VideoRenderer renderer;KineticPreview(Context c){super(c);}
-        void setTimeline(List<WordTimeline.Cue> words,BeatAnalyzer.Grid grid){
-            renderer=new VideoRenderer(words,grid);invalidate();
+        void setTimeline(List<WordTimeline.Cue> words,BeatAnalyzer.Grid grid,int mode){
+            renderer=new VideoRenderer(words,grid,mode);invalidate();
         }
         @Override protected void onDraw(Canvas c){super.onDraw(c);
             if(renderer==null){

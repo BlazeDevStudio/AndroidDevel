@@ -12,6 +12,18 @@ public final class BeatAnalyzer {
         }
     }
     private BeatAnalyzer() {}
+    /** User BPM and signed phase shift in milliseconds, preserving the detected grid when BPM=0. */
+    public static Grid correct(Grid detected,double manualBpm,double shiftMs) {
+        if(detected==null)throw new IllegalArgumentException("Missing beat grid");
+        if(!Double.isFinite(shiftMs)||Math.abs(shiftMs)>2000)
+            throw new IllegalArgumentException("Beat offset must be within +/-2000 ms");
+        if(manualBpm!=0 && (!Double.isFinite(manualBpm)||manualBpm<40||manualBpm>240))
+            throw new IllegalArgumentException("BPM must be 40–240, or blank for Auto");
+        double bpm=manualBpm==0?detected.bpm:manualBpm;
+        double period=60.0/bpm;
+        double phase=((detected.phaseSeconds+shiftMs/1000.0)%period+period)%period;
+        return new Grid(bpm,phase);
+    }
     public static Grid detect(float[] stereo, int sampleRate) {
         if (stereo == null || stereo.length < sampleRate) return new Grid(120, 0);
         int hop = Math.max(1, sampleRate/100); // 10 ms

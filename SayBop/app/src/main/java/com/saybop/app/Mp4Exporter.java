@@ -11,7 +11,7 @@ import java.io.*;
 import java.nio.*;
 import java.util.*;
 
-/** Offline H.264/AAC MP4 writer. Requires an Android video encoder with flexible YUV420 input images. */
+/** Offline H.264/AAC MP4 writer. Requires an Android H.264 encoder with Surface input. */
 public final class Mp4Exporter {
     private static final int FPS=30;
     private Mp4Exporter(){}
@@ -79,6 +79,10 @@ public final class Mp4Exporter {
     }
     public static Uri export(Context context,float[] audio,List<WordTimeline.Cue> cues,
                              BeatAnalyzer.Grid beat,String filename) throws Exception {
+        return export(context,audio,cues,beat,filename,0);
+    }
+    public static Uri export(Context context,float[] audio,List<WordTimeline.Cue> cues,
+                             BeatAnalyzer.Grid beat,String filename,int animationMode) throws Exception {
         File temp=new File(context.getCacheDir(),"saybop_export_"+System.nanoTime()+".mp4");
         State s=new State();boolean completed=false;
         Surface inputSurface=null;SurfaceFrames frames=null;
@@ -99,7 +103,7 @@ public final class Mp4Exporter {
             s.muxer=new MediaMuxer(temp.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             s.video.codec.start();s.audio.codec.start();
             frames=new SurfaceFrames(inputSurface,VideoRenderer.WIDTH,VideoRenderer.HEIGHT);
-            VideoRenderer renderer=new VideoRenderer(cues,beat);
+            VideoRenderer renderer=new VideoRenderer(cues,beat,animationMode);
             int audioFrames=audio.length/2,totalFrames=(int)Math.ceil(audioFrames/(double)PcmMix.RATE*FPS);
             int submitted=0;
             for(int f=0;f<totalFrames;f++){
