@@ -41,5 +41,6 @@ jobs:
             adb shell pidof com.saybop.app
             adb shell uiautomator dump /sdcard/saybop-window.xml
             adb shell cat /sdcard/saybop-window.xml | grep -i "SAYBOP"
+            cd SayBop && ./gradlew :app:connectedDebugAndroidTest --stacktrace
       - name: Test scope
         run: echo "Emulator installation and launch smoke only. Speech synthesis, song import and MP4 export require separate end-to-end evidence."

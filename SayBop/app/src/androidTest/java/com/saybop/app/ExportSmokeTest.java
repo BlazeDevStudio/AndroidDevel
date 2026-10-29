@@ -1,0 +1,93 @@
+package com.saybop.app;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import static org.junit.Assert.*;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
+
+/** Real emulator codec/muxer test using only original generated PCM, not a fake TTS result. */
+@RunWith(AndroidJUnit4.class)
+public final class ExportSmokeTest {
+    @Test public void syntheticMusicalWordsProducePlayableAvcAacMp4() throws Exception {
+        Context ctx=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        final int rate=PcmMix.RATE;
+        final int seconds=3;
+        float[] backing=new float[rate*seconds*2];
+        for(int i=0;i<backing.length/2;i++){
+            float v=(float)(.13*Math.sin(2*Math.PI*220*i/rate));
+            backing[i*2]=v;backing[i*2+1]=v;
+        }
+        float[] a=new float[rate/5],b=new float[rate/5];
+        for(int i=0;i<a.length;i++){
+            a[i]=(float)(.22*Math.sin(2*Math.PI*260*i/rate));
+            b[i]=(float)(.22*Math.sin(2*Math.PI*330*i/rate));
+        }
+        BeatAnalyzer.Grid grid=new BeatAnalyzer.Grid(120,0);
+        List<WordTimeline.Cue> cues=Arrays.asList(
+            new WordTimeline.Cue("HELLO",0,0,.5,.9),
+            new WordTimeline.Cue("WORLD",1,0,1.0,1.4));
+        float[] mixed=PcmMix.compose(backing,cues,Arrays.asList(a,b));
+        Uri exported=null;
+        try {
+            exported=Mp4Exporter.export(ctx,mixed,cues,grid,"SayBop-QA-Codec-Test.mp4");
+            assertNotNull("MediaStore returned no URI",exported);
+            MediaMetadataRetriever meta=new MediaMetadataRetriever();
+            try {
+                meta.setDataSource(ctx,exported);
+                assertEquals("720",meta.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+                assertEquals("1280",meta.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+                String duration=meta.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                assertNotNull("MP4 duration metadata missing",duration);
+                long d=Long.parseLong(duration);
+                assertTrue("MP4 duration "+d,d>=2800 && d<=3400);
+                Bitmap frame=meta.getFrameAtTime(600000,MediaMetadataRetriever.OPTION_CLOSEST);
+                assertNotNull("MP4 H.264 frame not decodable",frame);
+                frame.recycle();
+            } finally {meta.release();}
+            MediaExtractor extractor=new MediaExtractor();
+            int video=-1,audio=-1;
+            try {
+                extractor.setDataSource(ctx,exported,null);
+                for(int i=0;i<extractor.getTrackCount();i++){
+                    MediaFormat f=extractor.getTrackFormat(i);
+                    String mime=f.getString(MediaFormat.KEY_MIME);
+                    if("video/avc".equals(mime))video=i;
+                    if("audio/mp4a-latm".equals(mime))audio=i;
+                }
+            } finally {extractor.release();}
+            assertTrue("Missing H264 track",video>=0);
+            assertTrue("Missing AAC track",audio>=0);
+            for(int track:new int[]{video,audio}) {
+                MediaExtractor reader=new MediaExtractor();
+                try {
+                    reader.setDataSource(ctx,exported,null);
+                    reader.selectTrack(track);
+                    ByteBuffer buffer=ByteBuffer.allocate(1024*1024);
+                    long prev=-1;int samples=0;
+                    while(true){
+                        int n=reader.readSampleData(buffer,0);
+                        if(n<0)break;
+                        long t=reader.getSampleTime();
+                        assertTrue("PTS regression",t>=prev);
+                        prev=t;
+                        samples++;reader.advance();
+                        if(samples>600)fail("Unbounded MP4 samples");
+                    }
+                    assertTrue("Encoded track is empty",samples>0);
+                } finally {reader.release();}
+            }
+        } finally {
+            if(exported!=null)ctx.getContentResolver().delete(exported,null,null);
+        }
+    }
+}
