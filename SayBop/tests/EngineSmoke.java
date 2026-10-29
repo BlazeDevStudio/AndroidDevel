@@ -10,6 +10,19 @@ public final class EngineSmoke {
         background[(pos+j)*2]=.6f;background[(pos+j)*2+1]=.6f;
       }
     }
+    AudioVisuals visuals=AudioVisuals.analyze(background,rate);
+    float early=visuals.loudness(.005),between=visuals.loudness(.26);
+    if(!(early>between+.1f))throw new AssertionError("Music loudness is not reactive to beat hits");
+    if(!Float.isFinite(visuals.attack(.01))||visuals.attack(.01)<0||visuals.attack(.01)>1)throw new AssertionError("Attack bounds");
+    float[] blank=new float[rate*2];
+    AudioVisuals silence=AudioVisuals.analyze(blank,rate);
+    if(silence.loudness(.1)!=0||silence.attack(.1)!=0)throw new AssertionError("Silence not zero");
+    float[] shifted=background.clone();
+    for(int i=0;i<shifted.length;i++)shifted[i]*=.25f;
+    AudioVisuals scaled=AudioVisuals.analyze(shifted,rate);
+    if(!Float.isFinite(scaled.bass(.15)))throw new AssertionError("Bass finite");
+    try{AudioVisuals.analyze(new float[]{1},rate);throw new AssertionError("Odd PCM accepted");}
+    catch(IllegalArgumentException expected){}
     BeatAnalyzer.Grid g=BeatAnalyzer.detect(background,rate);
     if (Math.abs(g.bpm-120)>8 && Math.abs(g.bpm-60)>8)throw new AssertionError("BPM "+g.bpm);
     BeatAnalyzer.Grid corrected=BeatAnalyzer.correct(g,100,-125);

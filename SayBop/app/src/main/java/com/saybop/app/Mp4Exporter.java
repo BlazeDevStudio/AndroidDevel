@@ -83,6 +83,13 @@ public final class Mp4Exporter {
     }
     public static Uri export(Context context,float[] audio,List<WordTimeline.Cue> cues,
                              BeatAnalyzer.Grid beat,String filename,int animationMode) throws Exception {
+        return export(context,audio,cues,beat,filename,animationMode,AudioVisuals.analyze(audio,PcmMix.RATE));
+    }
+    public static Uri export(Context context,float[] audio,List<WordTimeline.Cue> cues,
+                             BeatAnalyzer.Grid beat,String filename,int animationMode,
+                             AudioVisuals reactive) throws Exception {
+        if(audio==null||audio.length<2||audio.length%2!=0||reactive==null)
+            throw new IllegalArgumentException("Missing stereo audio or reactive envelope");
         File temp=new File(context.getCacheDir(),"saybop_export_"+System.nanoTime()+".mp4");
         State s=new State();boolean completed=false;
         Surface inputSurface=null;SurfaceFrames frames=null;
@@ -103,7 +110,7 @@ public final class Mp4Exporter {
             s.muxer=new MediaMuxer(temp.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             s.video.codec.start();s.audio.codec.start();
             frames=new SurfaceFrames(inputSurface,VideoRenderer.WIDTH,VideoRenderer.HEIGHT);
-            VideoRenderer renderer=new VideoRenderer(cues,beat,animationMode);
+            VideoRenderer renderer=new VideoRenderer(cues,beat,animationMode,reactive);
             int audioFrames=audio.length/2,totalFrames=(int)Math.ceil(audioFrames/(double)PcmMix.RATE*FPS);
             int submitted=0;
             for(int f=0;f<totalFrames;f++){

@@ -63,7 +63,34 @@ jobs:
           git archive --format=zip --output=dist/SayBop-v0.1.0-source.zip HEAD SayBop
           (cd dist && sha256sum SayBop-v0.1.0-debug.apk SayBop-v0.1.0-source.zip | tee SHA256SUMS.txt && wc -c *.apk *.zip)
           echo "Source commit: $(git rev-parse HEAD)" >> dist/BUILD.txt
-          echo "Android device / installation / voice MP4 E2E tests: NOT YET VERIFIED" >> dist/BUILD.txt
+          echo "Build/lint/DSP verified at this commit. Emulator/TTS end-to-end tested separately." >> dist/BUILD.txt
+      - name: Publish immutable GitHub preview release (push only)
+        if: ${{ github.event_name == 'push' && github.repository == 'BlazeDevStudio/AndroidDevel' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+          short="${actual:0:12}"
+          tag="saybop-preview-$short"
+          {
+            echo "Experimental SayBop source commit: $actual"
+            echo
+            echo "Offline text + imported song + beat-synced generated audio and reactive video."
+            echo "Contains debug APK, source snapshot, SHA-256 manifest, and build scope."
+            echo "Passed in this workflow: pure-Java DSP regression, Android lint, APK compile."
+            echo "Android 15 codec/emulator CI runs in a separate workflow; current commit status must be checked separately."
+            echo "TTS vocal quality and real-device results remain unverified."
+            echo
+            echo "This is a preview, not a production release. All content is generated locally."
+          } > dist/RELEASE_NOTES.md
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/SayBop-v0.1.0-debug.apk dist/SayBop-v0.1.0-source.zip dist/SHA256SUMS.txt dist/BUILD.txt --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" dist/SayBop-v0.1.0-debug.apk dist/SayBop-v0.1.0-source.zip dist/SHA256SUMS.txt dist/BUILD.txt --prerelease --target "$actual" --title "SayBop Preview $short" --notes-file dist/RELEASE_NOTES.md --repo "$GITHUB_REPOSITORY"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: SayBop-v0.1.0-build

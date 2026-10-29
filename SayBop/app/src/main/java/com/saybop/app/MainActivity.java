@@ -33,6 +33,7 @@ public class MainActivity extends Activity {
     private float[] mixed;
     private List<WordTimeline.Cue> cues;
     private BeatAnalyzer.Grid grid;
+    private AudioVisuals songVisuals;
     private File previewFile;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final Runnable refresh=new Runnable(){public void run(){if(player!=null&&player.isPlaying()){
@@ -81,7 +82,7 @@ public class MainActivity extends Activity {
         layout.addView(label("ANIMATION",13,Color.WHITE));
         animationModes=new Spinner(this);
         animationModes.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-            new String[]{"Beat Pop","Slide + Fade","Pulse + Bounce"}));
+            new String[]{"Beat Pop","Slide + Fade","Pulse + Bounce","Spectrum Orbit","Waveform Drift"}));
         layout.addView(animationModes);space(layout,8);
         layout.addView(label("BPM  (blank = auto)",13,Color.WHITE));
         bpmInput=new EditText(this);bpmInput.setSingleLine(true);
@@ -180,6 +181,7 @@ public class MainActivity extends Activity {
                 notifyStatus("Decoding selected music locally…");
                 AudioIO.Track music=AudioIO.decode(this,selectedMusic,18);
                 BeatAnalyzer.Grid auto=BeatAnalyzer.detect(music.stereo,PcmMix.RATE);
+                AudioVisuals reactive=AudioVisuals.analyze(music.stereo,PcmMix.RATE);
                 double correctedBpm=bpmOverride.isEmpty()?0:Double.parseDouble(bpmOverride);
                 double offsetMs=offsetOverride.isEmpty()?0:Double.parseDouble(offsetOverride);
                 BeatAnalyzer.Grid detected=BeatAnalyzer.correct(auto,correctedBpm,offsetMs);
@@ -209,9 +211,9 @@ public class MainActivity extends Activity {
                 float[] output=PcmMix.compose(music.stereo,timeline,voice);
                 File playable=AudioIO.writePreviewWav(this,output);
                 runOnUiThread(()->{
-                    stopPreview();mixed=output;cues=timeline;grid=detected;previewFile=playable;
+                    stopPreview();mixed=output;cues=timeline;grid=detected;songVisuals=reactive;previewFile=playable;
                     currentAnimationMode=chosenAnimation;
-                    preview.setTimeline(cues,grid,currentAnimationMode);play.setEnabled(true);export.setEnabled(true);
+                    preview.setTimeline(cues,grid,currentAnimationMode,songVisuals);play.setEnabled(true);export.setEnabled(true);
                     notifyStatus(String.format(Locale.US,"Ready: %.1f seconds | %.0f BPM | %d word cues",
                         output.length/(2.0*PcmMix.RATE),detected.bpm,timeline.size()));
                 });
@@ -237,11 +239,12 @@ public class MainActivity extends Activity {
         final float[] audio=mixed;final List<WordTimeline.Cue> words=cues;
         final BeatAnalyzer.Grid beats=grid;
         final int mode=currentAnimationMode;
+        final AudioVisuals reactive=songVisuals;
         new Thread(()->{
             try{
                 notifyStatus("Encoding offline H.264 video and AAC audio…");
                 String name="SayBop_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".mp4";
-                Uri out=Mp4Exporter.export(this,audio,words,beats,name,mode);
+                Uri out=Mp4Exporter.export(this,audio,words,beats,name,mode,reactive);
                 notifyStatus("Saved MP4 to Movies/SayBop: "+name+"\n"+out);
             }catch(Exception e){notifyStatus("Export failed: "+e.getMessage());}
             finally{runOnUiThread(()->{setBusy(false);play.setEnabled(mixed!=null);export.setEnabled(mixed!=null);});}
@@ -252,8 +255,8 @@ public class MainActivity extends Activity {
     }
     private final class KineticPreview extends View {
         VideoRenderer renderer;KineticPreview(Context c){super(c);}
-        void setTimeline(List<WordTimeline.Cue> words,BeatAnalyzer.Grid grid,int mode){
-            renderer=new VideoRenderer(words,grid,mode);invalidate();
+        void setTimeline(List<WordTimeline.Cue> words,BeatAnalyzer.Grid grid,int mode,AudioVisuals reactive){
+            renderer=new VideoRenderer(words,grid,mode,reactive);invalidate();
         }
         @Override protected void onDraw(Canvas c){super.onDraw(c);
             if(renderer==null){

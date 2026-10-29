@@ -36,10 +36,16 @@ public final class ExportSmokeTest {
         List<WordTimeline.Cue> cues=Arrays.asList(
             new WordTimeline.Cue("HELLO",0,0,.5,.9),
             new WordTimeline.Cue("WORLD",1,0,1.0,1.4));
+        AudioVisuals reactive=AudioVisuals.analyze(backing,rate);
+        assertTrue("Synthetic music should have envelope",reactive.loudness(.5)>0.1f);
+        VideoRenderer still=new VideoRenderer(cues,grid,3,reactive);
+        Bitmap artwork=still.frame(.62);
+        assertEquals(VideoRenderer.WIDTH,artwork.getWidth());
+        assertEquals(VideoRenderer.HEIGHT,artwork.getHeight());
         float[] mixed=PcmMix.compose(backing,cues,Arrays.asList(a,b));
         Uri exported=null;
         try {
-            exported=Mp4Exporter.export(ctx,mixed,cues,grid,"SayBop-QA-Codec-Test.mp4");
+            exported=Mp4Exporter.export(ctx,mixed,cues,grid,"SayBop-QA-Codec-Test.mp4",3,reactive);
             assertNotNull("MediaStore returned no URI",exported);
             MediaMetadataRetriever meta=new MediaMetadataRetriever();
             try {
