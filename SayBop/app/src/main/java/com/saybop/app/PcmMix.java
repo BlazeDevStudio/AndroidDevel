@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 import java.util.*;
 
 /** Offline voice/music mix with aligned cue boundaries, attenuation and peak limiter. */
@@ -21,16 +21,16 @@ public final class PcmMix {
             }
         }
         for(WordTimeline.Cue cue:cues) {
+            if(cue.wordIndex<0 || cue.wordIndex>=voiceWavs.size())throw new IllegalArgumentException("Missing vocal event");
             float[] source=voiceWavs.get(cue.wordIndex); // mono 44.1kHz
             if(source==null||source.length==0)continue;
             int start=(int)Math.round(cue.startSeconds*RATE);
             int target=Math.max(1,(int)((cue.endSeconds-cue.startSeconds)*RATE));
+            if(start<0 || start>=result.length/2)continue;
+            float[] musical=PitchDsp.render(source,target,new int[]{0,2,4,7,4,2,0,-2}[(cue.wordIndex+cue.repetition*2)%8]);
             for(int j=0;j<target && start+j<result.length/2;j++) {
                 // resample each word so it precisely fits its allotted beat time
-                double pos=j*source.length/(double)target;
-                int idx=Math.min(source.length-1,(int)pos);
-                float a=source[idx], b=source[Math.min(source.length-1,idx+1)];
-                float v=(float)(a+(b-a)*(pos-idx));
+                float v=musical[j];
                 double fade=Math.min(1,Math.min(j/(RATE*.012), (target-j)/(RATE*.025)));
                 float add=(float)(v*fade*.82);
                 result[2*(start+j)]+=add;

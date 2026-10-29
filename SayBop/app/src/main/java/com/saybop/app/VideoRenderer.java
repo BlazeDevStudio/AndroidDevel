@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 import android.graphics.*;
 import java.util.*;
 
@@ -35,7 +35,7 @@ public final class VideoRenderer {
         // Simple progress/caption frame for rendering consistency
         p.setColor(Color.rgb(102,191,255));p.setTextAlign(Paint.Align.CENTER);
         p.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));p.setTextSize(23);
-        canvas.drawText("BLAZE DITTY",WIDTH/2f,85,p);
+        canvas.drawText("SAYBOP",WIDTH/2f,85,p);
         p.setColor(Color.argb(160,255,255,255));p.setTextSize(16);
         canvas.drawText("TEXT  ·  BEAT  ·  VIDEO",WIDTH/2f,113,p);
         WordTimeline.Cue cue=WordTimeline.at(cues,seconds);

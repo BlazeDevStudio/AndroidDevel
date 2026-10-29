@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 import java.util.*;
 
 /** All vocal onsets and visual word animations reference exactly these cue times. */

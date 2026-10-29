@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 
 import android.app.*;
 import android.os.*;
@@ -45,9 +45,9 @@ public class MainActivity extends Activity {
         layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(20),dp(18),dp(24));
         layout.setBackgroundColor(Color.rgb(7,13,26));
         scroll.addView(layout);setContentView(scroll);
-        TextView heading=label("BLAZE DITTY",29,Color.rgb(81,185,255));
+        TextView heading=label("SAYBOP",29,Color.rgb(81,185,255));
         heading.setTypeface(null,1);layout.addView(heading);
-        layout.addView(label("Your words. Your beat. Your video. 100% offline.",13,Color.rgb(177,195,219)));
+        layout.addView(label("Type it. Bop it. Share it.",13,Color.rgb(177,195,219)));
         space(layout,18);
         layout.addView(label("1   TYPE YOUR PHRASE",13,Color.WHITE));
         typed=new EditText(this);typed.setSingleLine(false);typed.setMinLines(2);typed.setMaxLines(5);
@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         ArrayAdapter<String> initial=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
                 new String[]{"Checking installed voices…"});
         voices.setAdapter(initial);layout.addView(voices);space(layout,14);
-        create=button("GENERATE DITTY",layout);
+        create=button("GENERATE SAYBOP",layout);
         create.setOnClickListener(v->generate());
         statusLabel=label("Ready once an offline voice is available.",13,Color.rgb(163,189,217));
         layout.addView(statusLabel);space(layout,14);
@@ -157,21 +157,19 @@ public class MainActivity extends Activity {
                 for(int i=0;i<words.length;i++) {
                     notifyStatus("Rendering installed voice "+(i+1)+"/"+words.length+"…");
                     File wav=new File(getCacheDir(),"voice_"+i+"_"+System.nanoTime()+".wav");
-                    String id="bditty_"+i+"_"+System.nanoTime();
+                    String id="saybop_"+i+"_"+System.nanoTime();
                     CountDownLatch latch=new CountDownLatch(1);
                     pending.put(id,latch);
                     try {
                         tts.setVoice(selected);
                         // A small melody pattern; installed engine remains the source of speech.
-                        int[] melody={0,2,4,7,4,2,0,-2};
-                        float pitch=(float)Math.pow(2,melody[i%melody.length]/12.0);
-                        tts.setPitch(pitch);tts.setSpeechRate(1.06f);
+                        tts.setPitch(1.0f);tts.setSpeechRate(1.06f); // Melodic pitch is processed in offline PCM, not delegated to TTS.
                         int rc=tts.synthesizeToFile(words[i],new Bundle(),wav,id);
                         if(rc!=TextToSpeech.SUCCESS)throw new IOException("TTS engine rejected word: "+words[i]);
                         if(!latch.await(25,TimeUnit.SECONDS)||!Boolean.TRUE.equals(finished.remove(id)))
                             throw new IOException("Offline TTS could not synthesize: "+words[i]);
                         voice.add(AudioIO.wavMono(wav));
-                    } finally {pending.remove(id);wav.delete();}
+                    } finally {pending.remove(id);finished.remove(id);wav.delete();}
                 }
                 notifyStatus("Synchronizing voice to beats and rendering preview…");
                 float[] output=PcmMix.compose(music.stereo,timeline,voice);
@@ -184,7 +182,7 @@ public class MainActivity extends Activity {
                 });
             } catch(Exception e){notifyStatus("Generate failed: "+e.getMessage());}
             finally {runOnUiThread(()->setBusy(false));}
-        },"DittyOfflineAudio").start();
+        },"SayBopOfflineAudio").start();
     }
     private void setBusy(boolean b){busy=b;create.setEnabled(!b);if(b){play.setEnabled(false);export.setEnabled(false);}}
     private void stopPreview(){ui.removeCallbacks(refresh);if(player!=null){
@@ -206,12 +204,12 @@ public class MainActivity extends Activity {
         new Thread(()->{
             try{
                 notifyStatus("Encoding offline H.264 video and AAC audio…");
-                String name="BlazeDitty_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".mp4";
+                String name="SayBop_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date())+".mp4";
                 Uri out=Mp4Exporter.export(this,audio,words,beats,name);
-                notifyStatus("Saved MP4 to Movies/BlazeDitty: "+name+"\n"+out);
+                notifyStatus("Saved MP4 to Movies/SayBop: "+name+"\n"+out);
             }catch(Exception e){notifyStatus("Export failed: "+e.getMessage());}
             finally{runOnUiThread(()->{setBusy(false);play.setEnabled(mixed!=null);export.setEnabled(mixed!=null);});}
-        },"DittyOfflineExport").start();
+        },"SayBopOfflineExport").start();
     }
     @Override protected void onDestroy(){
         stopPreview();ttsReady=false;if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();

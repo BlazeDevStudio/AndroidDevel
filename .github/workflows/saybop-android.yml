@@ -1,0 +1,68 @@
+name: SayBop Android build
+on:
+  push:
+    branches: [feat/saybop-android-mvp-20261030]
+  pull_request:
+    paths:
+      - 'SayBop/**'
+      - '.github/workflows/saybop-android.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          persist-credentials: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Generate and commit official Gradle wrapper if missing
+        working-directory: SayBop
+        run: |
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            gradle wrapper --gradle-version 8.9 --distribution-type bin
+            chmod +x gradlew
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add gradlew gradlew.bat gradle/wrapper/
+            git commit -m "build(saybop): add Gradle 8.9 wrapper including jar"
+            git push origin HEAD:feat/saybop-android-mvp-20261030
+          fi
+      - name: Pure-Java DSP regression
+        working-directory: SayBop
+        run: bash tests/run.sh
+      - name: Android unit tests
+        working-directory: SayBop
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+      - name: Android lint
+        working-directory: SayBop
+        run: ./gradlew :app:lintDebug --stacktrace
+      - name: Compile actual debug APK
+        working-directory: SayBop
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Produce APK, source snapshot and hashes
+        run: |
+          mkdir -p dist
+          cp SayBop/app/build/outputs/apk/debug/app-debug.apk dist/SayBop-v0.1.0-debug.apk
+          git archive --format=zip --output=dist/SayBop-v0.1.0-source.zip HEAD SayBop
+          (cd dist && sha256sum SayBop-v0.1.0-debug.apk SayBop-v0.1.0-source.zip | tee SHA256SUMS.txt && wc -c *.apk *.zip)
+          echo "Source commit: $(git rev-parse HEAD)" >> dist/BUILD.txt
+          echo "Android device / installation / voice MP4 E2E tests: NOT YET VERIFIED" >> dist/BUILD.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SayBop-v0.1.0-build
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

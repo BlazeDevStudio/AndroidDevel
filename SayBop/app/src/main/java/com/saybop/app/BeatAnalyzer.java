@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 
 /** Offline spectral-free onset-envelope autocorrelation. No network or microphone access. */
 public final class BeatAnalyzer {

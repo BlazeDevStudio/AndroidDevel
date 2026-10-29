@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 
 import android.content.Context;
 import android.media.*;
@@ -102,20 +102,21 @@ public final class AudioIO {
     public static float[] wavMono(File file) throws IOException {
         try(RandomAccessFile r=new RandomAccessFile(file,"r")) {
             if(r.length()<44)throw new IOException("TTS WAV file too short");
-            byte[] bytes=new byte[(int)Math.min(r.length(),10_000_000)];r.readFully(bytes);
+            if(r.length()>10_000_000)throw new IOException("TTS WAV exceeds 10 MB safety limit");
+            byte[] bytes=new byte[(int)r.length()];r.readFully(bytes);
             ByteBuffer b=ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
             if(!fourcc(bytes,0,"RIFF")||!fourcc(bytes,8,"WAVE"))throw new IOException("TTS engine did not produce PCM WAV");
             int channels=0,rate=0,bits=0,format=0,offset=-1,len=0;
             int p=12;
             while(p+8<=bytes.length){
-                int sz=b.getInt(p+4);if(sz<0||p+8L+sz>bytes.length)break;
+                int sz=b.getInt(p+4);if(sz<0||p+8L+sz>bytes.length)throw new IOException("TTS WAV has a truncated or invalid chunk");
                 if(fourcc(bytes,p,"fmt ")){
                     if(sz>=16){format=b.getShort(p+8)&0xffff;channels=b.getShort(p+10)&0xffff;
                         rate=b.getInt(p+12);bits=b.getShort(p+22)&0xffff;}
                 }else if(fourcc(bytes,p,"data")){offset=p+8;len=sz;break;}
                 p+=8+sz+(sz&1);
             }
-            if(format!=1 || bits!=16 || channels<1 || channels>2 || rate<8000 || rate>96000 || offset<0)
+            if(format!=1 || bits!=16 || channels<1 || channels>2 || rate<8000 || rate>96000 || offset<0 || len<=0 || (long)offset+len>bytes.length || len%(2*channels)!=0)
                 throw new IOException("Offline TTS voice output is not supported 16-bit WAV PCM");
             int frames=len/(2*channels);float[] mono=new float[frames];
             for(int i=0;i<frames;i++){
@@ -137,7 +138,7 @@ public final class AudioIO {
         return true;
     }
     public static File writePreviewWav(Context ctx,float[] stereo) throws IOException {
-        File file=new File(ctx.getCacheDir(),"ditty_preview.wav");
+        File file=new File(ctx.getCacheDir(),"saybop_preview.wav");
         try(FileOutputStream out=new FileOutputStream(file)){
             int data=stereo.length*2;
             ByteBuffer h=ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN);

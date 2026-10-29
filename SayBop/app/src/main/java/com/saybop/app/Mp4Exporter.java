@@ -1,4 +1,4 @@
-package dev.blaze.ditty;
+package com.saybop.app;
 
 import android.content.*;
 import android.graphics.Bitmap;
@@ -111,7 +111,7 @@ public final class Mp4Exporter {
     }
     public static Uri export(Context context,float[] audio,List<WordTimeline.Cue> cues,
                              BeatAnalyzer.Grid beat,String filename) throws Exception {
-        File temp=new File(context.getCacheDir(),"ditty_export_"+System.nanoTime()+".mp4");
+        File temp=new File(context.getCacheDir(),"saybop_export_"+System.nanoTime()+".mp4");
         State s=new State();boolean completed=false;
         try {
             MediaFormat vf=MediaFormat.createVideoFormat("video/avc",VideoRenderer.WIDTH,VideoRenderer.HEIGHT);
@@ -164,7 +164,7 @@ public final class Mp4Exporter {
             ContentValues data=new ContentValues();
             data.put(MediaStore.MediaColumns.DISPLAY_NAME,filename);
             data.put(MediaStore.MediaColumns.MIME_TYPE,"video/mp4");
-            data.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_MOVIES+"/BlazeDitty");
+            data.put(MediaStore.MediaColumns.RELATIVE_PATH,Environment.DIRECTORY_MOVIES+"/SayBop");
             data.put(MediaStore.MediaColumns.IS_PENDING,1);
             Uri uri=context.getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI,data);
             if(uri==null)throw new IOException("MediaStore could not create an output video");
