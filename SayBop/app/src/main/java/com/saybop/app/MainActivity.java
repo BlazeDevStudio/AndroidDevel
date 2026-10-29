@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         layout.setBackgroundColor(Color.rgb(7,13,26));
         scroll.addView(layout);setContentView(scroll);
         TextView heading=label("SAYBOP",29,Color.rgb(81,185,255));
-        heading.setTypeface(null,1);layout.addView(heading);
+        heading.setTypeface(null,Typeface.BOLD);layout.addView(heading);
         layout.addView(label("Type it. Bop it. Share it.",13,Color.rgb(177,195,219)));
         space(layout,18);
         layout.addView(label("1   TYPE YOUR PHRASE",13,Color.WHITE));
