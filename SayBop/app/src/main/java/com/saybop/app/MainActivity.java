@@ -40,15 +40,24 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state){
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(4,10,24));
-        getWindow().setNavigationBarColor(Color.rgb(4,10,24));
+        getWindow().setStatusBarColor(Color.rgb(9,15,29));
+        getWindow().setNavigationBarColor(Color.rgb(9,15,29));
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
         LinearLayout layout=new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);layout.setPadding(dp(18),dp(20),dp(18),dp(24));
-        layout.setBackgroundColor(Color.rgb(7,13,26));
+        layout.setBackgroundColor(Color.rgb(9,15,29));
         scroll.addView(layout);setContentView(scroll);
-        TextView heading=label("SAYBOP",29,Color.rgb(81,185,255));
-        heading.setTypeface(null,Typeface.BOLD);layout.addView(heading);
+        LinearLayout brandRow=new LinearLayout(this);
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView brandMark=new ImageView(this);
+        brandMark.setImageResource(R.drawable.saybop_brand_mark);
+        brandRow.addView(brandMark,new LinearLayout.LayoutParams(dp(56),dp(56)));
+        TextView heading=label("SAYBOP",29,Color.rgb(244,247,255));
+        heading.setTypeface(null,Typeface.BOLD);
+        LinearLayout.LayoutParams headingParams=new LinearLayout.LayoutParams(-1,-2);
+        headingParams.leftMargin=dp(12);
+        brandRow.addView(heading,headingParams);
+        layout.addView(brandRow);
         layout.addView(label("Type it. Bop it. Share it.",13,Color.rgb(177,195,219)));
         space(layout,18);
         layout.addView(label("1   TYPE YOUR PHRASE",13,Color.WHITE));
@@ -122,7 +131,7 @@ public class MainActivity extends Activity {
     }
     private Button button(String title,LinearLayout root){
         Button b=new Button(this);b.setText(title);b.setAllCaps(false);b.setTextColor(Color.WHITE);
-        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(20,100,186)));
+        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(22,113,230)));
         root.addView(b,new LinearLayout.LayoutParams(-1,dp(49)));return b;
     }
     private void notifyStatus(String msg){runOnUiThread(()->statusLabel.setText(msg));}

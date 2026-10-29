@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp" android:height="128dp"
+    android:viewportWidth="1248" android:viewportHeight="1248">
+  <!-- BlazeDevStudio v3 B silhouette: geometry from owner-approved master, not Z. -->
+  <path android:fillColor="#090F1D"
+      android:pathData="M160,0 H1088 C1177,0 1248,71 1248,160 V1088 C1248,1177 1177,1248 1088,1248 H160 C71,1248 0,1177 0,1088 V160 C0,71 71,0 160,0 Z"/>
+  <path android:fillColor="#1B81FE" android:pathData="M555,265 L706,265 C747,264 771,291 811,331 L885,403 C931,445 936,493 919,532 C899,582 857,612 814,631 L699,687 L613,568 L729,454 C769,418 787,384 786,356 C784,311 743,268 706,265 Z"/>
+  <path android:fillColor="#429EFE" android:pathData="M658,613 C764,600 866,639 913,698 C957,751 956,830 920,890 C891,945 850,969 761,970 L536,970 L691,817 L767,770 L648,680 Z"/>
+  <path android:fillColor="#0761F6" android:pathData="M654,675 L768,770 C821,817 863,861 852,914 C847,937 836,952 815,966 C798,969 785,970 763,970 L541,970 L711,815 Z"/>
+  <path android:fillColor="#F4F7FF" android:pathData="M313,265 H555 L692,411 H388 L313,337 Z"/>
+  <path android:fillColor="#F4F7FF" android:pathData="M426,469 L520,560 L426,638 Z"/>
+  <path android:fillColor="#F4F7FF" android:pathData="M335,969 L533,814 H716 L540,969 Z"/>
+  <path android:fillColor="#1387FE" android:pathData="M555,265 H708 C760,264 788,306 788,346 C788,377 765,399 713,435 Z"/>
+  <path android:fillColor="#53A7FF" android:pathData="M313,761 L714,435 C760,395 793,367 789,343 C820,365 874,402 903,432 C922,453 919,466 902,476 L313,952 Z"/>
+  <!-- Ruby HUD marker, same master position; simplified concentric rings for Android VectorDrawable. -->
+  <path android:fillColor="#00000000" android:strokeColor="#168DFB" android:strokeWidth="4"
+      android:pathData="M959.6,295 A50.6,50.6 0,1 1 858.4,295 A50.6,50.6 0,1 1 959.6,295 Z"/>
+  <path android:fillColor="#00000000" android:strokeColor="#F4F7FF" android:strokeWidth="5"
+      android:pathData="M951.9,295 A42.9,42.9 0,1 1 866.1,295 A42.9,42.9 0,1 1 951.9,295 Z"/>
+  <path android:fillColor="#080E1C" android:pathData="M945.3,295 A36.3,36.3 0,1 1 872.7,295 A36.3,36.3 0,1 1 945.3,295 Z"/>
+  <path android:fillColor="#F10843" android:pathData="M939.25,295 A30.25,30.25 0,1 1 878.75,295 A30.25,30.25 0,1 1 939.25,295 Z"/>
+  <path android:fillColor="#FF91A9" android:fillAlpha=".5" android:pathData="M898.55,281.8 A9.35,9.35 0,1 1 879.85,281.8 A9.35,9.35 0,1 1 898.55,281.8 Z"/>
+</vector>

@@ -32,6 +32,17 @@ public final class EngineSmoke {
     float[] mixed=PcmMix.compose(background,cues,voices);
     if(mixed.length!=background.length)throw new AssertionError("mix duration");
     for(float x:mixed)if(!Float.isFinite(x) || x>1 || x< -1)throw new AssertionError("PCM range");
+    if (MelodicVocal.estimateSyllables("hello")!=2)throw new AssertionError("Syllable nuclei");
+    if (MelodicVocal.estimateSyllables("make")!=1)throw new AssertionError("Silent E");
+    if (MelodicVocal.estimateSyllables("rhythm")<1)throw new AssertionError("Y vowel");
+    if (MelodicVocal.estimateSyllables("rhythm")>4)throw new AssertionError("Syllable upper bound");
+    float[] testWord=new float[rate/3];
+    for (int i=0;i<testWord.length;i++)testWord[i]=(float)(.22*Math.sin(2*Math.PI*180*i/rate));
+    float[] melodic=MelodicVocal.render(testWord,rate/2,"hello",1,0);
+    if (melodic.length!=rate/2)throw new AssertionError("Vocal duration");
+    double energy=0;
+    for (float x:melodic){if(!Float.isFinite(x)||Math.abs(x)>2)throw new AssertionError("Vocal PCM range");energy+=x*x;}
+    if (energy<1)throw new AssertionError("Melodic render unexpectedly silent");
     float[] pitched=PitchDsp.render(new float[rate/4],rate/3,4);
     if(pitched.length!=rate/3)throw new AssertionError("DSP cue duration");
     System.out.println("PASS beat~"+g.bpm+" BPM; "+cues.size()+" cues; timed text; stereo mix; limiter");

@@ -27,9 +27,9 @@ public final class PcmMix {
             int start=(int)Math.round(cue.startSeconds*RATE);
             int target=Math.max(1,(int)((cue.endSeconds-cue.startSeconds)*RATE));
             if(start<0 || start>=result.length/2)continue;
-            float[] musical=PitchDsp.render(source,target,new int[]{0,2,4,7,4,2,0,-2}[(cue.wordIndex+cue.repetition*2)%8]);
+            float[] musical=MelodicVocal.render(source,target,cue.text,cue.wordIndex,cue.repetition);
             for(int j=0;j<target && start+j<result.length/2;j++) {
-                // resample each word so it precisely fits its allotted beat time
+                // All contours are rendered to the shared beat cue; do not drift across video/audio
                 float v=musical[j];
                 double fade=Math.min(1,Math.min(j/(RATE*.012), (target-j)/(RATE*.025)));
                 float add=(float)(v*fade*.82);
