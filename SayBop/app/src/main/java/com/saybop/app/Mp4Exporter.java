@@ -2,6 +2,7 @@ package com.saybop.app;
 
 import android.content.*;
 import android.graphics.Bitmap;
+import android.view.Surface;
 import android.media.*;
 import android.net.Uri;
 import android.os.Environment;
@@ -60,39 +61,6 @@ public final class Mp4Exporter {
             }
         }
     }
-    private static void queueVideo(State state,VideoRenderer renderer,int frameNo,boolean last){
-        Enc e=state.video;
-        int idx=e.codec.dequeueInputBuffer(100000);
-        if(idx<0){pump(state,e);pump(state,state.audio);idx=e.codec.dequeueInputBuffer(100000);}
-        if(idx<0)throw new IllegalStateException("Video encoder input unavailable");
-        long pts=frameNo*1_000_000L/FPS;
-        if(last){e.codec.queueInputBuffer(idx,0,0,pts,MediaCodec.BUFFER_FLAG_END_OF_STREAM);return;}
-        android.media.Image img=e.codec.getInputImage(idx);
-        if(img==null)throw new IllegalStateException("Device lacks flexible YUV420 encoder image input");
-        try{putYuv(renderer.frame(frameNo/(double)FPS),img);}finally{img.close();}
-        e.codec.queueInputBuffer(idx,0,VideoRenderer.WIDTH*VideoRenderer.HEIGHT*3/2,pts,0);
-    }
-    private static int cap(int x){return x<0?0:Math.min(255,x);}
-    private static void putYuv(Bitmap b,android.media.Image im){
-        int w=b.getWidth(),h=b.getHeight();
-        int[] px=new int[w*h];b.getPixels(px,0,w,0,0,w,h);
-        android.media.Image.Plane[] planes=im.getPlanes();
-        ByteBuffer y=planes[0].getBuffer(),u=planes[1].getBuffer(),v=planes[2].getBuffer();
-        int ys=planes[0].getRowStride(),yp=planes[0].getPixelStride();
-        int us=planes[1].getRowStride(),up=planes[1].getPixelStride();
-        int vs=planes[2].getRowStride(),vp=planes[2].getPixelStride();
-        for(int yy=0;yy<h;yy++)for(int xx=0;xx<w;xx++){
-            int color=px[yy*w+xx],r=(color>>16)&255,g=(color>>8)&255,bl=color&255;
-            int l=cap((int)(16+0.257*r+0.504*g+0.098*bl));
-            y.put(yy*ys+xx*yp,(byte)l);
-            if((xx&1)==0 && (yy&1)==0){
-                int uu=cap((int)(128-0.148*r-0.291*g+0.439*bl));
-                int vv=cap((int)(128+0.439*r-0.368*g-0.071*bl));
-                u.put((yy/2)*us+(xx/2)*up,(byte)uu);
-                v.put((yy/2)*vs+(xx/2)*vp,(byte)vv);
-            }
-        }
-    }
     private static int queueAudio(State s,float[] stereo,int startFrame,int untilFrame) {
         Enc e=s.audio;
         int idx=e.codec.dequeueInputBuffer(100000);
@@ -113,14 +81,16 @@ public final class Mp4Exporter {
                              BeatAnalyzer.Grid beat,String filename) throws Exception {
         File temp=new File(context.getCacheDir(),"saybop_export_"+System.nanoTime()+".mp4");
         State s=new State();boolean completed=false;
+        Surface inputSurface=null;SurfaceFrames frames=null;
         try {
             MediaFormat vf=MediaFormat.createVideoFormat("video/avc",VideoRenderer.WIDTH,VideoRenderer.HEIGHT);
-            vf.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible);
+            vf.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
             vf.setInteger(MediaFormat.KEY_BIT_RATE,1_600_000);
             vf.setInteger(MediaFormat.KEY_FRAME_RATE,FPS);
             vf.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL,2);
             s.video=new Enc(MediaCodec.createEncoderByType("video/avc"));
             s.video.codec.configure(vf,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
+            inputSurface=s.video.codec.createInputSurface();
             MediaFormat af=MediaFormat.createAudioFormat("audio/mp4a-latm",PcmMix.RATE,2);
             af.setInteger(MediaFormat.KEY_AAC_PROFILE,MediaCodecInfo.CodecProfileLevel.AACObjectLC);
             af.setInteger(MediaFormat.KEY_BIT_RATE,128000);
@@ -128,11 +98,12 @@ public final class Mp4Exporter {
             s.audio.codec.configure(af,null,null,MediaCodec.CONFIGURE_FLAG_ENCODE);
             s.muxer=new MediaMuxer(temp.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
             s.video.codec.start();s.audio.codec.start();
+            frames=new SurfaceFrames(inputSurface,VideoRenderer.WIDTH,VideoRenderer.HEIGHT);
             VideoRenderer renderer=new VideoRenderer(cues,beat);
             int audioFrames=audio.length/2,totalFrames=(int)Math.ceil(audioFrames/(double)PcmMix.RATE*FPS);
             int submitted=0;
             for(int f=0;f<totalFrames;f++){
-                queueVideo(s,renderer,f,false);
+                frames.draw(renderer.frame(f/(double)FPS),f*1_000_000L/FPS);
                 int until=Math.min(audioFrames,(int)Math.round((f+1)*PcmMix.RATE/(double)FPS));
                 while(submitted<until){
                     int n=queueAudio(s,audio,submitted,until);
@@ -141,7 +112,7 @@ public final class Mp4Exporter {
                 }
                 pump(s,s.video);pump(s,s.audio);
             }
-            queueVideo(s,renderer,totalFrames,true);
+            s.video.codec.signalEndOfInputStream();
             int ai=s.audio.codec.dequeueInputBuffer(100000);
             if(ai<0){pump(s,s.audio);ai=s.audio.codec.dequeueInputBuffer(100000);}
             if(ai<0)throw new IllegalStateException("AAC EOS input unavailable");
@@ -155,6 +126,8 @@ public final class Mp4Exporter {
             if(!s.started)throw new IllegalStateException("Encoder never produced both MP4 tracks");
             s.muxer.stop();s.started=false;completed=true;
         } finally {
+            if(frames!=null)frames.close();
+            if(inputSurface!=null)inputSurface.release();
             if(s.video!=null){try{s.video.codec.stop();}catch(Exception ignored){}s.video.codec.release();}
             if(s.audio!=null){try{s.audio.codec.stop();}catch(Exception ignored){}s.audio.codec.release();}
             if(s.muxer!=null){if(s.started){try{s.muxer.stop();}catch(Exception ignored){}}s.muxer.release();}

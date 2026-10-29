@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Draws offline, beat-keyed kinetic typography without GIF or external assets. */
 public final class VideoRenderer {
-    public static final int WIDTH=480, HEIGHT=848;
+    public static final int WIDTH=720, HEIGHT=1280;
     private final Bitmap bitmap=Bitmap.createBitmap(WIDTH,HEIGHT,Bitmap.Config.ARGB_8888);
     private final Canvas canvas=new Canvas(bitmap);
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);

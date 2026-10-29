@@ -26,6 +26,7 @@ public final class EngineSmoke {
     if(mixed.length!=background.length)throw new AssertionError("mix duration");
     for(float x:mixed)if(!Float.isFinite(x) || x>1 || x< -1)throw new AssertionError("PCM range");
     float[] pitched=PitchDsp.render(new float[rate/4],rate/3,4);
-    if(pitched.length!=rate/3)throw new AssertionError("DSP cue duration");\n    System.out.println("PASS beat~"+g.bpm+" BPM; "+cues.size()+" cues; timed text; stereo mix; limiter");
+    if(pitched.length!=rate/3)throw new AssertionError("DSP cue duration");
+    System.out.println("PASS beat~"+g.bpm+" BPM; "+cues.size()+" cues; timed text; stereo mix; limiter");
   }
 }
