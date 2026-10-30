@@ -12,15 +12,13 @@ import android.widget.*;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.*;
 
 /** Native, entirely offline text -> beat -> generated voice -> animated MP4 prototype. */
 public class MainActivity extends Activity {
     private TextToSpeech tts;
     private boolean ttsReady=false,busy=false;
     private final ArrayList<Voice> voiceOptions=new ArrayList<>();
-    private final ConcurrentHashMap<String,CountDownLatch> pending=new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String,Boolean> finished=new ConcurrentHashMap<>();
+    private SystemTtsSynth systemSynth;
     private Uri selectedMusic;
     private boolean demoMusic=false;
     private EditText typed;
@@ -127,14 +125,8 @@ public class MainActivity extends Activity {
             if(result==TextToSpeech.SUCCESS){ttsReady=true;loadVoices();}
             else notifyStatus("Built-in Synth ready. Android TTS unavailable; choose demo beat or local music.");
         });
-        if(tts!=null)tts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
-            @Override public void onStart(String id){}
-            @Override public void onDone(String id){complete(id,true);}
-            @Override public void onError(String id){complete(id,false);}
-            @Override public void onError(String id,int code){complete(id,false);}
-        });
+        if(tts!=null)systemSynth=new SystemTtsSynth(tts);
     }
-    private void complete(String id,boolean ok){finished.put(id,ok);CountDownLatch l=pending.get(id);if(l!=null)l.countDown();}
     private int dp(float n){return (int)(getResources().getDisplayMetrics().density*n+.5f);}
     private static void space(LinearLayout l,int dip){
         android.view.View v=new android.view.View(l.getContext());
@@ -211,20 +203,8 @@ public class MainActivity extends Activity {
                         voice.add(BuiltinVocalSynth.renderWord(plan.words.get(i)));
                         continue;
                     }
-                    File wav=new File(getCacheDir(),"voice_"+i+"_"+System.nanoTime()+".wav");
-                    String id="saybop_"+i+"_"+System.nanoTime();
-                    CountDownLatch latch=new CountDownLatch(1);
-                    pending.put(id,latch);
-                    try {
-                        tts.setVoice(selected);
-                        // A small melody pattern; installed engine remains the source of speech.
-                        tts.setPitch(1.0f);tts.setSpeechRate(1.06f); // Melodic pitch is processed in offline PCM, not delegated to TTS.
-                        int rc=tts.synthesizeToFile(plan.words.get(i),new Bundle(),wav,id);
-                        if(rc!=TextToSpeech.SUCCESS)throw new IOException("TTS engine rejected word: "+plan.words.get(i));
-                        if(!latch.await(25,TimeUnit.SECONDS)||!Boolean.TRUE.equals(finished.remove(id)))
-                            throw new IOException("Offline TTS could not synthesize: "+plan.words.get(i));
-                        voice.add(AudioIO.wavMono(wav));
-                    } finally {pending.remove(id);finished.remove(id);wav.delete();}
+                    if(systemSynth==null)throw new IOException("Android TTS unavailable");
+                    voice.add(systemSynth.renderWord(plan.words.get(i),selected,getCacheDir()));
                 }
                 notifyStatus("Synchronizing voice to beats and rendering preview…");
                 float[] output=SongPipeline.mix(plan,voice);
