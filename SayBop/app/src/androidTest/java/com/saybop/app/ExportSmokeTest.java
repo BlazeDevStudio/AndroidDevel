@@ -1,6 +1,13 @@
 package com.saybop.app;
 
 import android.content.Context;
+import android.content.Intent;
+import android.app.Activity;
+import android.app.Instrumentation;
+import android.os.SystemClock;
+import android.widget.Button;
+import android.widget.TextView;
+import java.util.concurrent.atomic.AtomicReference;
 import android.graphics.Bitmap;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
@@ -109,4 +116,48 @@ public final class ExportSmokeTest {
             if(exported!=null)ctx.getContentResolver().delete(exported,null,null);
         }
     }
+    /** First-run path exercised through real Android UI, no external TTS or imported file. */
+    @Test public void builtinDemoButtonGeneratesPlayablePreviewWithoutSystemTts() throws Exception {
+        Instrumentation inst=InstrumentationRegistry.getInstrumentation();
+        Context context=inst.getTargetContext();
+        Intent launch=new Intent(context,MainActivity.class);
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        final Activity activity=inst.startActivitySync(launch);
+        assertNotNull("MainActivity did not launch",activity);
+        final AtomicReference<String> last=new AtomicReference<>("");
+        try {
+            inst.runOnMainSync(()->{
+                Button demo=activity.findViewById(R.id.demo_beat_button);
+                Button generate=activity.findViewById(R.id.generate_button);
+                assertNotNull("Demo beat control missing",demo);
+                assertNotNull("Generate button missing",generate);
+                assertTrue("Built-in demo beat not selectable",demo.performClick());
+                assertTrue("Generate button did not accept click",generate.performClick());
+            });
+            final long deadline=SystemClock.uptimeMillis()+95000L;
+            boolean ready=false;
+            while(SystemClock.uptimeMillis()<deadline){
+                inst.runOnMainSync(()->{
+                    TextView status=activity.findViewById(R.id.generation_status);
+                    assertNotNull(status);
+                    last.set(status.getText().toString());
+                });
+                if(last.get().startsWith("Ready:")){ready=true;break;}
+                if(last.get().startsWith("Generate failed:"))break;
+                Thread.sleep(300);
+            }
+            assertTrue("Built-in UI generation incomplete: "+last.get(),ready);
+            inst.runOnMainSync(()->{
+                Button play=activity.findViewById(R.id.preview_play_button);
+                Button export=activity.findViewById(R.id.video_export_button);
+                assertNotNull("Preview control missing",play);
+                assertNotNull("Export control missing",export);
+                assertTrue("Preview must be enabled after generation",play.isEnabled());
+                assertTrue("MP4 export must be enabled after generation",export.isEnabled());
+            });
+        } finally {
+            inst.runOnMainSync(activity::finish);
+        }
+    }
+
 }

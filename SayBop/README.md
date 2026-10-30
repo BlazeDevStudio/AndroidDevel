@@ -44,3 +44,7 @@ validation gates.
 ## Offline first-run path
 
 Choose **USE ORIGINAL DEMO BEAT (120 BPM)**, keep **Built-in Synth** selected, enter an English phrase, choose an animation, then generate. This exercises real local PCM synthesis (vowel formants, noise consonants), the beat-quantized word mixer, a 12-second generated stereo backing track and MP4 exporter without downloads or Android speech voice packs. Android TTS voices appear as optional additional choices if present. Built-in synth is an audible robotic sketch, not a genuine high-quality speech/singing voice; pronunciation and multilingual input are limited. Android emulator instrumentation exercises built-in vocal samples and encoded video.
+
+## UI first-run regression
+
+Android instrumentation now launches MainActivity, selects the original demo beat, triggers the built-in synthesis path, verifies generation reaches Ready, and verifies that both preview playback and video export are enabled. This is separate from the 3-second synthetic-song MP4 codec validation. The UI run does not pretend to listen to or rate vocal naturalness.

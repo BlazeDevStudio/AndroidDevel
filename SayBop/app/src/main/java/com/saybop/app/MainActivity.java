@@ -76,6 +76,7 @@ public class MainActivity extends Activity {
             i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("audio/*");startActivityForResult(i,55);
         });space(layout,12);
         Button builtInBeat=button("USE ORIGINAL DEMO BEAT (120 BPM)",layout);
+        builtInBeat.setId(R.id.demo_beat_button);
         builtInBeat.setOnClickListener(v->{
             demoMusic=true;selectedMusic=null;
             songLabel.setText("Built-in 12s demo beat — 120 BPM (offline)");
@@ -104,15 +105,19 @@ public class MainActivity extends Activity {
         beatShiftInput.setText("0");beatShiftInput.setTextColor(Color.WHITE);
         layout.addView(beatShiftInput);space(layout,14);
         create=button("GENERATE SAYBOP",layout);
+        create.setId(R.id.generate_button);
         create.setOnClickListener(v->generate());
         statusLabel=label("Built-in voice ready. Choose a song or demo beat.",13,Color.rgb(163,189,217));
+        statusLabel.setId(R.id.generation_status);
         layout.addView(statusLabel);space(layout,14);
         preview=new KineticPreview(this);preview.setBackgroundColor(Color.rgb(5,10,24));
         layout.addView(preview,new LinearLayout.LayoutParams(-1,dp(330)));
         space(layout,12);
         play=button("PLAY AUDIO + ANIMATION",layout);
+        play.setId(R.id.preview_play_button);
         play.setEnabled(false);play.setOnClickListener(v->playPreview());
-        export=button("EXPORT 9:16 MP4",layout);export.setEnabled(false);
+        export=button("EXPORT 9:16 MP4",layout);
+        export.setId(R.id.video_export_button);export.setEnabled(false);
         export.setOnClickListener(v->exportVideo());
         space(layout,10);
         layout.addView(label("Audio and video are generated on your device. No accounts, uploads, or cloud services.",12,
