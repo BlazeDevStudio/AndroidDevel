@@ -3,6 +3,36 @@ import java.util.*;
 public final class EngineSmoke {
   public static void main(String[] args) {
     int rate=44100;
+    float[] syllables=BuiltinVocalSynth.renderWord("hello");
+    float[] other=BuiltinVocalSynth.renderWord("world");
+    float[] again=BuiltinVocalSynth.renderWord("hello");
+    if(syllables.length<rate/5 || syllables.length>rate*2 ||
+       other.length<rate/5)throw new AssertionError("Built-in word duration");
+    if(syllables.length!=again.length)throw new AssertionError("Nondeterministic length");
+    double voicePower=0;
+    for(int i=0;i<syllables.length;i++){
+      float v=syllables[i];
+      if(!Float.isFinite(v)||Math.abs(v)>.83f || v!=again[i])
+        throw new AssertionError("Built-in voice invalid/different PCM");
+      voicePower+=v*v;
+    }
+    if(voicePower<5)throw new AssertionError("Built-in voice unexpectedly silent");
+    try{BuiltinVocalSynth.renderWord("1234");throw new AssertionError("Invalid word accepted");}
+    catch(IllegalArgumentException expected){}
+    float[] demo=DemoBeat.create();
+    if(demo.length!=rate*12*2)throw new AssertionError("Demo music duration");
+    AudioVisuals demoEnvelope=AudioVisuals.analyze(demo,rate);
+    if(demoEnvelope.loudness(.02)<.01 || demoEnvelope.bass(.2)<.01)
+      throw new AssertionError("Demo music is silent");
+    BeatAnalyzer.Grid demoGrid=BeatAnalyzer.detect(demo,rate);
+    if(!Double.isFinite(demoGrid.bpm)||demoGrid.bpm<60||demoGrid.bpm>180)
+      throw new AssertionError("Demo beat bpm invalid "+demoGrid.bpm);
+    List<WordTimeline.Cue> demoCues=WordTimeline.build("hello world",new BeatAnalyzer.Grid(120,0),12);
+    float[] demoMix=PcmMix.compose(demo,demoCues,Arrays.asList(syllables,other));
+    if(demoMix.length!=demo.length)throw new AssertionError("Full built-in pipeline mismatched duration");
+    for(float v:demoMix)if(!Float.isFinite(v)||Math.abs(v)>1)
+      throw new AssertionError("Full built-in pipeline clipping");
+    
     float[] background=new float[rate*12*2];
     for (int beat=0;beat<24;beat++) {
       int pos=(int)(beat*.5*rate);

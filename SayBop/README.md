@@ -18,7 +18,7 @@ Build output: `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Operation
 
-Choose a local audio file, installed offline TTS voice, enter a phrase, generate a musical timed sequence, preview, then export MP4 to `Movies/SayBop`. The app has no Internet permission. Voice packs must already be installed. The DSP uses offline granular overlap-add pitch and time shaping; it is not a studio-quality singing synthesizer. Audio processing is capped at 18 seconds in this MVP.
+Choose a local audio file (or built-in original demo beat), use the bundled robotic synth or an installed offline Android TTS voice, enter a phrase, generate a musical timed sequence, preview, then export MP4 to `Movies/SayBop`. The app has no Internet permission. The built-in formant/grapheme synth needs no installed voice pack; its English-ish vocal sound is intentionally robotic and is **not intelligible TTS**. A proper installed system TTS voice is still preferable for understandable spoken lyrics. The DSP uses offline granular overlap-add pitch and time shaping; it is not a studio-quality singing synthesizer. Audio processing is capped at 18 seconds in this MVP.
 
 ## Verification policy
 
@@ -40,3 +40,7 @@ one immutable music envelope and the same renderer. At 120 BPM scenes switch
 every two seconds. No Ditty artwork or proprietary audio assets are copied.
 Real on-device offline voice availability and singing naturalness remain separate
 validation gates.
+
+## Offline first-run path
+
+Choose **USE ORIGINAL DEMO BEAT (120 BPM)**, keep **Built-in Synth** selected, enter an English phrase, choose an animation, then generate. This exercises real local PCM synthesis (vowel formants, noise consonants), the beat-quantized word mixer, a 12-second generated stereo backing track and MP4 exporter without downloads or Android speech voice packs. Android TTS voices appear as optional additional choices if present. Built-in synth is an audible robotic sketch, not a genuine high-quality speech/singing voice; pronunciation and multilingual input are limited. Android emulator instrumentation exercises built-in vocal samples and encoded video.

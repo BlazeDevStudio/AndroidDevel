@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
     private final ConcurrentHashMap<String,CountDownLatch> pending=new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String,Boolean> finished=new ConcurrentHashMap<>();
     private Uri selectedMusic;
+    private boolean demoMusic=false;
     private EditText typed;
     private TextView statusLabel,songLabel;
     private Button create,export,play;
@@ -74,10 +75,16 @@ public class MainActivity extends Activity {
             Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("audio/*");startActivityForResult(i,55);
         });space(layout,12);
-        layout.addView(label("3   USE AN INSTALLED OFFLINE TTS VOICE",13,Color.WHITE));
+        Button builtInBeat=button("USE ORIGINAL DEMO BEAT (120 BPM)",layout);
+        builtInBeat.setOnClickListener(v->{
+            demoMusic=true;selectedMusic=null;
+            songLabel.setText("Built-in 12s demo beat — 120 BPM (offline)");
+        });
+        space(layout,12);
+        layout.addView(label("3   VOICE",13,Color.WHITE));
         voices=new Spinner(this);
         ArrayAdapter<String> initial=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"Checking installed voices…"});
+                new String[]{"Built-in Synth (robotic, works offline)"});
         voices.setAdapter(initial);layout.addView(voices);space(layout,14);
         layout.addView(label("ANIMATION",13,Color.WHITE));
         animationModes=new Spinner(this);
@@ -98,7 +105,7 @@ public class MainActivity extends Activity {
         layout.addView(beatShiftInput);space(layout,14);
         create=button("GENERATE SAYBOP",layout);
         create.setOnClickListener(v->generate());
-        statusLabel=label("Ready once an offline voice is available.",13,Color.rgb(163,189,217));
+        statusLabel=label("Built-in voice ready. Choose a song or demo beat.",13,Color.rgb(163,189,217));
         layout.addView(statusLabel);space(layout,14);
         preview=new KineticPreview(this);preview.setBackgroundColor(Color.rgb(5,10,24));
         layout.addView(preview,new LinearLayout.LayoutParams(-1,dp(330)));
@@ -112,9 +119,9 @@ public class MainActivity extends Activity {
                 Color.rgb(135,153,176)));
         tts=new TextToSpeech(this, result->{
             if(result==TextToSpeech.SUCCESS){ttsReady=true;loadVoices();}
-            else notifyStatus("Android TTS could not initialize. Install an offline system voice.");
+            else notifyStatus("Built-in Synth ready. Android TTS unavailable; choose demo beat or local music.");
         });
-        tts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
+        if(tts!=null)tts.setOnUtteranceProgressListener(new UtteranceProgressListener(){
             @Override public void onStart(String id){}
             @Override public void onDone(String id){complete(id,true);}
             @Override public void onError(String id){complete(id,false);}
@@ -139,7 +146,8 @@ public class MainActivity extends Activity {
     private void loadVoices(){
         runOnUiThread(()->{
             voiceOptions.clear();ArrayList<String> names=new ArrayList<>();
-            Set<Voice> all=tts.getVoices();
+            names.add("Built-in Synth (robotic, works offline)");
+            Set<Voice> all=ttsReady && tts!=null?tts.getVoices():null;
             if(all!=null){
                 ArrayList<Voice> sorted=new ArrayList<>(all);
                 sorted.sort(Comparator.comparing(v->v.getLocale().toLanguageTag()+v.getName()));
@@ -148,10 +156,9 @@ public class MainActivity extends Activity {
                     voiceOptions.add(v);names.add(v.getLocale().toLanguageTag()+" / "+v.getName());
                 }
             }
-            if(names.isEmpty())names.add("No installed offline voice available");
             voices.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,names));
-            notifyStatus(voiceOptions.isEmpty()?"Install an offline TTS voice in Android Settings.":
-                "Found "+voiceOptions.size()+" installed offline voices. Ready to generate.");
+            voices.setSelection(0);
+            notifyStatus("Built-in Synth available; "+voiceOptions.size()+" optional offline Android TTS voices.");
         });
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
@@ -159,6 +166,7 @@ public class MainActivity extends Activity {
         if(request==55 && result==RESULT_OK && data!=null){
             selectedMusic=data.getData();
             if(selectedMusic!=null){
+                demoMusic=false;
                 try{getContentResolver().takePersistableUriPermission(selectedMusic,Intent.FLAG_GRANT_READ_URI_PERMISSION);}
                 catch(SecurityException ignored){}
                 songLabel.setText("Selected: "+selectedMusic.getLastPathSegment());
@@ -167,11 +175,17 @@ public class MainActivity extends Activity {
     }
     private void generate(){
         if(busy)return;
-        if(!ttsReady||voiceOptions.isEmpty()){notifyStatus("No installed offline TTS voice found.");return;}
-        if(selectedMusic==null){notifyStatus("Choose local music first.");return;}
+        if(selectedMusic==null && !demoMusic){notifyStatus("Choose a local song or use the built-in demo beat.");return;}
         String phrase=typed.getText().toString().trim();
         if(phrase.isEmpty()){notifyStatus("Type something to sing.");return;}
-        Voice selected=voiceOptions.get(Math.max(0,Math.min(voices.getSelectedItemPosition(),voiceOptions.size()-1)));
+        final int voiceChoice=voices.getSelectedItemPosition();
+        final boolean useBuiltIn=voiceChoice<=0;
+        if(!useBuiltIn && (!ttsReady || voiceChoice-1>=voiceOptions.size())){
+            notifyStatus("Selected Android TTS voice is unavailable; try Built-in Synth.");return;
+        }
+        final Voice selected=useBuiltIn?null:voiceOptions.get(voiceChoice-1);
+        final boolean chosenDemo=demoMusic;
+        final Uri chosenMusic=selectedMusic;
         final int chosenAnimation=Math.max(0,animationModes.getSelectedItemPosition());
         final String bpmOverride=bpmInput.getText().toString().trim();
         final String offsetOverride=beatShiftInput.getText().toString().trim();
@@ -179,7 +193,8 @@ public class MainActivity extends Activity {
         new Thread(()->{
             try {
                 notifyStatus("Decoding selected music locally…");
-                AudioIO.Track music=AudioIO.decode(this,selectedMusic,18);
+                AudioIO.Track music=chosenDemo?new AudioIO.Track(DemoBeat.create()):
+                    AudioIO.decode(this,chosenMusic,18);
                 BeatAnalyzer.Grid auto=BeatAnalyzer.detect(music.stereo,PcmMix.RATE);
                 AudioVisuals reactive=AudioVisuals.analyze(music.stereo,PcmMix.RATE);
                 double correctedBpm=bpmOverride.isEmpty()?0:Double.parseDouble(bpmOverride);
@@ -191,7 +206,11 @@ public class MainActivity extends Activity {
                         .filter(w->!w.isEmpty()).toArray(String[]::new);
                 List<float[]> voice=new ArrayList<>();
                 for(int i=0;i<words.length;i++) {
-                    notifyStatus("Rendering installed voice "+(i+1)+"/"+words.length+"…");
+                    notifyStatus("Synthesizing "+(i+1)+"/"+words.length+" words…");
+                    if(useBuiltIn){
+                        voice.add(BuiltinVocalSynth.renderWord(words[i]));
+                        continue;
+                    }
                     File wav=new File(getCacheDir(),"voice_"+i+"_"+System.nanoTime()+".wav");
                     String id="saybop_"+i+"_"+System.nanoTime();
                     CountDownLatch latch=new CountDownLatch(1);

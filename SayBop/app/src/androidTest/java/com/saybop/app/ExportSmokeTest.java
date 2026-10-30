@@ -15,7 +15,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 
-/** Real emulator codec/muxer test using only original generated PCM, not a fake TTS result. */
+/** Real Android emulator built-in voice + music + reactive MP4 test, no system TTS required. */
 @RunWith(AndroidJUnit4.class)
 public final class ExportSmokeTest {
     @Test public void syntheticMusicalWordsProducePlayableAvcAacMp4() throws Exception {
@@ -27,11 +27,12 @@ public final class ExportSmokeTest {
             float v=(float)(.13*Math.sin(2*Math.PI*220*i/rate));
             backing[i*2]=v;backing[i*2+1]=v;
         }
-        float[] a=new float[rate/5],b=new float[rate/5];
-        for(int i=0;i<a.length;i++){
-            a[i]=(float)(.22*Math.sin(2*Math.PI*260*i/rate));
-            b[i]=(float)(.22*Math.sin(2*Math.PI*330*i/rate));
-        }
+        float[] a=BuiltinVocalSynth.renderWord("HELLO");
+        float[] b=BuiltinVocalSynth.renderWord("WORLD");
+        assertTrue("Built-in vocal synthesis produced no samples",a.length>rate/5 && b.length>rate/5);
+        double vowelEnergy=0;
+        for(float v:a)vowelEnergy+=v*v;
+        assertTrue("Built-in vocal synthesis is silent",vowelEnergy>5);
         BeatAnalyzer.Grid grid=new BeatAnalyzer.Grid(120,0);
         List<WordTimeline.Cue> cues=Arrays.asList(
             new WordTimeline.Cue("HELLO",0,0,.5,.9),
