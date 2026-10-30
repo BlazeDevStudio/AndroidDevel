@@ -110,7 +110,8 @@ public class MainActivity extends Activity {
         statusLabel=label("Built-in voice ready. Choose a song or demo beat.",13,Color.rgb(163,189,217));
         statusLabel.setId(R.id.generation_status);
         layout.addView(statusLabel);space(layout,14);
-        preview=new KineticPreview(this);preview.setBackgroundColor(Color.rgb(5,10,24));
+        preview=new KineticPreview(this,()->player!=null?player.getCurrentPosition()/1000.0:0.0);
+        preview.setBackgroundColor(Color.rgb(5,10,24));
         layout.addView(preview,new LinearLayout.LayoutParams(-1,dp(330)));
         space(layout,12);
         play=button("PLAY AUDIO + ANIMATION",layout);
@@ -200,20 +201,14 @@ public class MainActivity extends Activity {
                 notifyStatus("Decoding selected music locally…");
                 AudioIO.Track music=chosenDemo?new AudioIO.Track(DemoBeat.create()):
                     AudioIO.decode(this,chosenMusic,18);
-                BeatAnalyzer.Grid auto=BeatAnalyzer.detect(music.stereo,PcmMix.RATE);
-                AudioVisuals reactive=AudioVisuals.analyze(music.stereo,PcmMix.RATE);
-                double correctedBpm=bpmOverride.isEmpty()?0:Double.parseDouble(bpmOverride);
+                double bpm=bpmOverride.isEmpty()?0:Double.parseDouble(bpmOverride);
                 double offsetMs=offsetOverride.isEmpty()?0:Double.parseDouble(offsetOverride);
-                BeatAnalyzer.Grid detected=BeatAnalyzer.correct(auto,correctedBpm,offsetMs);
-                List<WordTimeline.Cue> timeline=WordTimeline.build(phrase,detected,music.duration());
-                if(timeline.isEmpty())throw new IOException("The track is too short for a word animation");
-                String[] words=Arrays.stream(phrase.split("\\s+"))
-                        .filter(w->!w.isEmpty()).toArray(String[]::new);
+                SongPipeline.Plan plan=SongPipeline.plan(phrase,music.stereo,bpm,offsetMs);
                 List<float[]> voice=new ArrayList<>();
-                for(int i=0;i<words.length;i++) {
-                    notifyStatus("Synthesizing "+(i+1)+"/"+words.length+" words…");
+                for(int i=0;i<plan.words.size();i++) {
+                    notifyStatus("Synthesizing "+(i+1)+"/"+plan.words.size()+" words…");
                     if(useBuiltIn){
-                        voice.add(BuiltinVocalSynth.renderWord(words[i]));
+                        voice.add(BuiltinVocalSynth.renderWord(plan.words.get(i)));
                         continue;
                     }
                     File wav=new File(getCacheDir(),"voice_"+i+"_"+System.nanoTime()+".wav");
@@ -224,22 +219,22 @@ public class MainActivity extends Activity {
                         tts.setVoice(selected);
                         // A small melody pattern; installed engine remains the source of speech.
                         tts.setPitch(1.0f);tts.setSpeechRate(1.06f); // Melodic pitch is processed in offline PCM, not delegated to TTS.
-                        int rc=tts.synthesizeToFile(words[i],new Bundle(),wav,id);
-                        if(rc!=TextToSpeech.SUCCESS)throw new IOException("TTS engine rejected word: "+words[i]);
+                        int rc=tts.synthesizeToFile(plan.words.get(i),new Bundle(),wav,id);
+                        if(rc!=TextToSpeech.SUCCESS)throw new IOException("TTS engine rejected word: "+plan.words.get(i));
                         if(!latch.await(25,TimeUnit.SECONDS)||!Boolean.TRUE.equals(finished.remove(id)))
-                            throw new IOException("Offline TTS could not synthesize: "+words[i]);
+                            throw new IOException("Offline TTS could not synthesize: "+plan.words.get(i));
                         voice.add(AudioIO.wavMono(wav));
                     } finally {pending.remove(id);finished.remove(id);wav.delete();}
                 }
                 notifyStatus("Synchronizing voice to beats and rendering preview…");
-                float[] output=PcmMix.compose(music.stereo,timeline,voice);
+                float[] output=SongPipeline.mix(plan,voice);
                 File playable=AudioIO.writePreviewWav(this,output);
                 runOnUiThread(()->{
-                    stopPreview();mixed=output;cues=timeline;grid=detected;songVisuals=reactive;previewFile=playable;
+                    stopPreview();mixed=output;cues=plan.cues;grid=plan.grid;songVisuals=plan.visuals;previewFile=playable;
                     currentAnimationMode=chosenAnimation;
                     preview.setTimeline(cues,grid,currentAnimationMode,songVisuals);play.setEnabled(true);export.setEnabled(true);
                     notifyStatus(String.format(Locale.US,"Ready: %.1f seconds | %.0f BPM | %d word cues",
-                        output.length/(2.0*PcmMix.RATE),detected.bpm,timeline.size()));
+                        output.length/(2.0*PcmMix.RATE),plan.grid.bpm,plan.cues.size()));
                 });
             } catch(Exception e){notifyStatus("Generate failed: "+e.getMessage());}
             finally {runOnUiThread(()->setBusy(false));}
@@ -276,22 +271,5 @@ public class MainActivity extends Activity {
     }
     @Override protected void onDestroy(){
         stopPreview();ttsReady=false;if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();
-    }
-    private final class KineticPreview extends View {
-        VideoRenderer renderer;KineticPreview(Context c){super(c);}
-        void setTimeline(List<WordTimeline.Cue> words,BeatAnalyzer.Grid grid,int mode,AudioVisuals reactive){
-            renderer=new VideoRenderer(words,grid,mode,reactive);invalidate();
-        }
-        @Override protected void onDraw(Canvas c){super.onDraw(c);
-            if(renderer==null){
-                Paint p=new Paint(3);p.setColor(Color.rgb(24,65,120));c.drawColor(Color.rgb(5,13,30));
-                p.setTextAlign(Paint.Align.CENTER);p.setTextSize(dp(23));
-                c.drawText("YOUR WORDS WILL SING HERE",getWidth()/2f,getHeight()/2f,p);
-                return;
-            }
-            double t=(player!=null)?player.getCurrentPosition()/1000.0:0;
-            Bitmap bitmap=renderer.frame(t);
-            c.drawBitmap(bitmap,null,new Rect(0,0,getWidth(),getHeight()),new Paint(Paint.FILTER_BITMAP_FLAG));
-        }
     }
 }

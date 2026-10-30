@@ -28,7 +28,18 @@ public final class EngineSmoke {
     if(!Double.isFinite(demoGrid.bpm)||demoGrid.bpm<60||demoGrid.bpm>180)
       throw new AssertionError("Demo beat bpm invalid "+demoGrid.bpm);
     List<WordTimeline.Cue> demoCues=WordTimeline.build("hello world",new BeatAnalyzer.Grid(120,0),12);
-    float[] demoMix=PcmMix.compose(demo,demoCues,Arrays.asList(syllables,other));
+    SongPipeline.Plan plan=SongPipeline.plan("hello world",demo,120,0);
+    if(plan.words.size()!=2 || plan.cues.size()<2 || plan.durationSeconds()!=12)
+      throw new AssertionError("Plan shape changed");
+    if(plan.grid.bpm!=120 || plan.visuals.sampleCount()<100)
+      throw new AssertionError("Plan grid/envelope changed");
+    float[] demoMix=SongPipeline.mix(plan,Arrays.asList(syllables,other));
+    if(!Arrays.equals(demoMix,PcmMix.compose(demo,plan.cues,Arrays.asList(syllables,other))))
+      throw new AssertionError("Pipeline changed PCM mix");
+    try{SongPipeline.mix(plan,Arrays.asList(syllables));throw new AssertionError("Missing voice accepted");}
+    catch(IllegalArgumentException expected){}
+    try{plan.words.add("extra");throw new AssertionError("Mutable word list");}
+    catch(UnsupportedOperationException expected){}
     if(demoMix.length!=demo.length)throw new AssertionError("Full built-in pipeline mismatched duration");
     for(float v:demoMix)if(!Float.isFinite(v)||Math.abs(v)>1)
       throw new AssertionError("Full built-in pipeline clipping");

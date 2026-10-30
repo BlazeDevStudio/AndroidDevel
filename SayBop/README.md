@@ -48,3 +48,7 @@ Choose **USE ORIGINAL DEMO BEAT (120 BPM)**, keep **Built-in Synth** selected, e
 ## UI first-run regression
 
 Android instrumentation now launches MainActivity, selects the original demo beat, triggers the built-in synthesis path, verifies generation reaches Ready, and verifies that both preview playback and video export are enabled. This is separate from the 3-second synthetic-song MP4 codec validation. The UI run does not pretend to listen to or rate vocal naturalness.
+
+## Code structure
+
+`MainActivity` owns Android UI, voice engine callbacks and lifecycle. `KineticPreview` is a standalone video preview View with an injected playback clock. `SongPipeline` is pure Java and owns beat/cue planning, immutable song metadata and the final stereo composition. It coordinates existing DSP components without replacing their algorithms. This code cleanup preserves the existing UI IDs, preview settings, Android test hooks and music-generation behavior.
